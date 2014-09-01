@@ -1,6 +1,5 @@
 <% content_for :header_tags do %>
-  <%= stylesheet_link_tag('jquery-ui', 'jquery.jqplot.css',
-			   :plugin => 'redmine_impasse') %>
+  <%= stylesheet_link_tag('jquery-ui', 'jquery.jqplot.css', :plugin => 'redmine_impasse') %>
   <%= javascript_include_tag 'jquery', 'jquery-ui', :plugin => 'redmine_impasse' %>
   <!--[if lt IE 9]><%= javascript_include_tag 'excanvas.min.js', :plugin => 'redmine_impasse' %><![endif]-->
   <%= javascript_include_tag 'jquery.jqplot.min.js', :plugin => 'redmine_impasse' %>
@@ -12,35 +11,28 @@
 <%= impasse_breadcrumb [
      link_to(l(:label_impasse), { :controller => :impasse_test_case, :action => :index, :project_id => @project}),
      link_to(l(:label_test_plans_list), { :controller => :impasse_test_plans, :action => :index, :project_id => @project})
-    ]%>
+]%>
+
 <h2><%=h @test_plan.name %></h2>
 
 <%= render_impasse_tabs %>
 
 <% content_for :sidebar do %>
-<div>
-  <p style="height: 4em;"/>
-  <h3><%=l(:field_category)%></h3>
-  <%=link_to l(:label_impasse_stat_overview),
-     { :action => :statistics, :project_id => @project, :id => @test_plan}, :class => "statistics-link" %><br/>
+  <div>
+    <p style="height: 4em;">
+      <h3><%= l(:field_category) %></h3>
+      <%= link_to l(:label_impasse_stat_overview),
+         { :action => :statistics, :type => 'default', :project_id => @project, :id => @test_plan}, :class => "statistics-link" %><br/>
 
-  <%=link_to l(:label_impasse_stat_members),
-     { :action => :statistics, :type => 'members', :project_id => @project, :id => @test_plan}, :class => "statistics-link"  %><br/>
+      <%= link_to l(:label_impasse_stat_members),
+         { :action => :statistics, :type => 'members', :project_id => @project, :id => @test_plan}, :class => "statistics-link" %><br/>
 
-  <%=link_to l(:label_impasse_stat_daily),
-     { :action => :statistics, :type => 'daily', :project_id => @project, :id => @test_plan}, :class => "statistics-link"  %><br/>
-</div>
+      <%= link_to l(:label_impasse_stat_daily),
+         { :action => :statistics, :type => 'daily', :project_id => @project, :id => @test_plan}, :class => "statistics-link" %><br/>
+    </p>
+  </div>
 <% end %>
 
 <div id="statistics-view">
-<%= render :partial=>"impasse_test_plans/statistics/#{params[:type]}"%>
+  <%= render :partial=>"impasse_test_plans/statistics/#{params[:type]}"%>
 </div>
-
-<script>
-jQuery(document).ready(function($) {
-  $(".statistics-link").click(function(e) {
-    $("#statistics-view").load($(this).attr("href"));
-    return false;
-  });
-});
-</script>

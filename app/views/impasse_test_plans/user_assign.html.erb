@@ -9,15 +9,15 @@
     var test_plan_id = '<%= @test_plan.id %>';
     var IMPASSE = {
       url: {
-        testPlansAdd: "<%= url_for :controller=>:impasse_test_plans, :action=>:add_test_case, :project_id=>@project %>",
-        testPlansRemove: "<%= url_for :controller=>:impasse_test_plans, :action=>:remove_test_case, :project_id=>@project %>",
-        executionsPut:  "<%= url_for :controller=>:impasse_executions, :action=>:put, :project_id=>@project %>",
-        executionsDelete:  "<%= url_for :controller=>:impasse_executions, :action=>:destroy, :project_id=>@project %>",
-        executionsList: "<%= url_for :controller=>:impasse_executions, :action=>:get_list, :project_id=>@project, :test_plan_id=>@test_plan.id %>",
-        iconDelete: "<%=image_path 'delete.png'%>",
-        iconTestSuite: "<%=Redmine::Utils::relative_url_root%>/plugin_assets/redmine_impasse/stylesheets/images/documents-stack.png",
-        iconTestCase:  "<%=Redmine::Utils::relative_url_root%>/plugin_assets/redmine_impasse/stylesheets/images/document-attribute-t.png",
-        iconProject:   "<%=Redmine::Utils::relative_url_root%>/plugin_assets/redmine_impasse/stylesheets/images/book-brown.png",
+        testPlansAdd: "<%= url_for :controller => :impasse_test_plans, :action => :add_test_case, :project_id => @project %>",
+        testPlansRemove: "<%= url_for :controller => :impasse_test_plans, :action => :remove_test_case, :project_id => @project %>",
+        executionsPut:  "<%= url_for :controller => :impasse_executions, :action => :put, :project_id => @project %>",
+        executionsDelete:  "<%= url_for :controller => :impasse_executions, :action => :destroy, :project_id => @project %>",
+        plannedList: "<%= url_for :controller => :impasse_executions, :action => :get_planned, :project_id => @project, :test_plan_id=>@test_plan.id %>",
+        iconDelete: "<%= image_path 'delete.png' %>",
+        iconTestSuite: "<%= Redmine::Utils::relative_url_root %>/plugin_assets/redmine_impasse/stylesheets/images/documents-stack.png",
+        iconTestCase:  "<%= Redmine::Utils::relative_url_root %>/plugin_assets/redmine_impasse/stylesheets/images/document-attribute-t.png",
+        iconProject:   "<%= Redmine::Utils::relative_url_root %>/plugin_assets/redmine_impasse/stylesheets/images/book-brown.png",
       },
       label: {
         buttonDelete: "<%=l(:button_delete)%>"
@@ -37,37 +37,30 @@
 
 <div class="tab-content">
   <div class="splitcontentleft">
+    <div id="drop-area" class="jstree-drop" style="background:lime; color:green; width: 100%; height:40px; line-height:40px; text-align:center; border:5px solid green;">
+      <%=l(:text_assign_users)%>
+    </div>
     <div id="testplan-tree"></div>
   </div>
   <div class="splitcontentright" style="position: relative;">
     <div id="cal-user-view">
       <fieldset>
-	<legend><%=l :label_calendar %></legend>
-	<div id="calendar-view" style="width: 100%"></div>
+        <legend><%=l :label_calendar %></legend>
+        <div id="calendar-view" style="width: 100%"></div>
       </fieldset>
       <fieldset>
         <p><%= label_tag "principal_search", l(:label_user_search) %><%= text_field_tag 'principal_search', nil %></p>
-	<% if Redmine::VERSION::MAJOR < 2 or Redmine::VERSION::MINOR < 1 %>
-          <%= observe_field(:principal_search,
-			    :frequency => 0.5,
-			    :update => :principals,
-			    :url => { :controller => :impasse_test_plans, :action => :autocomplete, :project_id => @project },
-			    :method => :get,
-			    :before => '$("principal_search").addClassName("ajax-loading")',
-			    :complete => '$("principal_search").removeClassName("ajax-loading")',
-			    :with => 'q')
-              %>
-	<% else %>
-	  <%= javascript_tag "observeSearchfield('principal_search', 'principals', '#{ escape_javascript url_for(:controller => :impasse_test_plans, :action => :autocomplete, :projec_id => @project )}')" %>
-	<% end %>
-	<legend><%=l :label_member_plural %></legend>
-	<div id="principals">
-	  <ul>
-	    <% for user in @project.users.all(:limit => 100) %>
-	      <li class="jstree-draggable test-member" style="list-style:none; cursor: pointer" id="principal-<%=h user.id %>"><%= avatar user, :size=>16 %><%=h user %></li>
-  <% end %>
-	  </ul>
-	</div>
+	      <%= javascript_tag "observeSearchfield('principal_search', 'principals', '#{ escape_javascript url_for(:controller => :impasse_test_plans, :action => :autocomplete, :projec_id => @project )}')" %>
+        <legend><%=l :label_member_plural %></legend>
+	      <div id="principals">
+	        <ul>
+	          <% for user in @project.users.all(:limit => 100) %>
+	            <li class="jstree-draggable test-member" style="list-style:none; cursor: pointer" id="principal-<%=h user.id %>">
+                <%= avatar user, :size=>16 %><%=h user %>
+              </li>
+            <% end %>
+	        </ul>
+	      </div>
       </fieldset>
     </div>
   </div>

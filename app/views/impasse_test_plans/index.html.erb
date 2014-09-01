@@ -1,4 +1,6 @@
-<%= impasse_breadcrumb [link_to(l(:label_impasse), {:controller => :impasse_test_case, :action => :index, :project_id => @project})]%>
+<%= impasse_breadcrumb [link_to(l(:label_impasse),
+                        {:controller => :impasse_test_case, :action => :index, :project_id => @project})]
+%>
 <div class="contextual">
 <%= link_to(l(:label_test_plan_new),
             {:controller=>:impasse_test_plans, :action=>:new,:project_id=>@project},
@@ -8,30 +10,32 @@
 <h2><%=l(:label_test_plan_plural)%></h2>
 
 <% if @versions.empty? %>
-<p class="nodata"><%= l(:label_no_data) %></p>
+  <p class="nodata"><%= l(:label_no_data) %></p>
 <% else %>
-<div id="testplans">
-<% @versions.each do |version| %>   
-    <h3 class="version"><%= tag 'a', :name => version.name %><%= link_to_version version %></h3>
-    <%= render(:partial => "wiki/content", :locals => {:content => version.wiki_page.content}) if version.wiki_page %>
-    <% if (test_plans = @test_plans_by_version[version]) && test_plans.size > 0 %>
-      <table class="list">
-      <%- test_plans.each do |test_plan| -%>
-	<tr>
-          <td><%= link_to test_plan.name, :action => :show, :project_id => @project, :id => test_plan.id %></td>
-	</tr>
-      <%- end -%>
-      </table>
+  <div id="testplans">
+    <% @versions.each do |version| %>   
+      <h3 class="version"><%= tag 'a', :name => version.name %><%= link_to_version version %></h3>
+      <%= render(:partial => "wiki/content", :locals => {:content => version.wiki_page.content}) if version.wiki_page %>
+      <% if (test_plans = @test_plans_by_version[version]) && test_plans.size > 0 %>
+        <table class="list">
+          <% test_plans.each do |test_plan| %>
+            <tr>
+              <td><%= link_to test_plan.name, :action => :show, :project_id => @project, :id => test_plan.id %></td>
+            </tr>
+          <% end %>
+        </table>
+      <% end %>
     <% end %>
-<% end %>
-</div>
+  </div>
 <% end %>
 </div>
 
 <% content_for :sidebar do %>
   <% form_tag({}, :method => :get) do %>
     <p>
-      <label for="completed"><%= check_box_tag "completed", true, params[:completed] %> <%= l(:label_show_completed_versions) %></label>
+      <label for="completed"><%= check_box_tag "completed", 
+                                 true, 
+                                params[:completed] %> <%= l(:label_show_completed_versions) %></label>
       <br/>
       <%= submit_tag l(:button_apply), :class => 'button-small', :name => nil %>
     </p>

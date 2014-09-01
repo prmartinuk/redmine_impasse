@@ -1,0 +1,1 @@
+$('#issues-tree').html("<%= escape_javascript(render(:partial => ctrl + '/issues_list', :locals => {:query => query, :issue_pages => issue_pages, :issue_count => issue_count, :issues => issues})) %>");

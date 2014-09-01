@@ -1,0 +1,29 @@
+<hr>
+<p>
+  <strong><%= l(:label_test_case_plural) %></strong>
+</p>
+<fieldset id="requirement_cases" class="collapsible collapsed">
+  <legend onclick="toggleFieldset(this);"><%= l(:label_test_case_plural) %></legend>
+  <div style="display:none;">
+    <table>
+      <% for test_case in test_cases %>
+        <tr>
+          <td>
+            <%=
+            link_to("#{test_case.id} - #{test_case.node.name}", {
+                  :controller => :impasse_test_case,
+                  :action => :index,
+                  :project_id => context[:project],
+                  :anchor => "test_case-#{test_case.id}"
+                })
+            %>
+          </td>
+        </tr>
+      <% end %>
+    </table>
+  </div>
+</fieldset>
+
+
+
+

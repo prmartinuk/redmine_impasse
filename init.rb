@@ -1,15 +1,7 @@
 require 'redmine'
-require 'impasse_projects_helper_patch'
 
-if Rails::VERSION::MAJOR < 3
-  require 'dispatcher'
-  object_to_prepare = Dispatcher
-else
-  object_to_prepare = Rails.configuration
-end
-
-object_to_prepare.to_prepare do
-  require_dependency 'impasse_hooks'
+ActionDispatch::Callbacks.to_prepare do
+  require 'impasse_projects_helper_patch'
 
   unless ProjectsHelper.included_modules.include? ImpasseProjectsHelperPatch
     ProjectsHelper.send(:include, ImpasseProjectsHelperPatch)
@@ -50,11 +42,20 @@ object_to_prepare.to_prepare do
   end
 end
 
+require_dependency 'impasse_hooks'
+
 Redmine::Plugin.register :redmine_impasse do
+  menu :project_menu, :impasse_exec_step_hists, {controller: "impasse_exec_step_hists", action: "index" }, caption: :label_impasse_exec_step_hist_plural, param: :project_id
+ 
+ # project_module :impasse_exec_step_hists do
+ #   permission :view_impasse_exec_step_hists, impasse_exec_step_hists: [:new, :index, :show]
+ #   permission :manage_impasse_exec_step_hists, impasse_exec_step_hists: [:new, :create, :edit, :update, :destroy]
+ # end
+ 
   name 'Redmine Impasse plugin'
-  author 'kawasima'
+  author 'kawasima (atualizado por Rafael Roque de Mello)'
   description 'Test management tool integrated Redmine'
-  version '1.2.2'
+  version '1.3.1-step'
   url 'http://unit8.net/redmine_impasse'
   author_url 'http://unit8.net/'
 
@@ -75,6 +76,7 @@ Redmine::Plugin.register :redmine_impasse do
       'impasse_execution_bugs' => [:new, :edit, :destroy, :upload_attachments],
       'impasse_requirement_issues' => [:add_test_case, :remove_test_case],
       'impasse_screenshots' => [:new, :destroy],
+      'impasse_exec_step_hists' => [:new, :edit, :destroy, :upload_attachments],
     }, :require => :member
 
     permission :setting_testcases, {
@@ -87,10 +89,10 @@ Redmine::Plugin.register :redmine_impasse do
   :param => :project_id
 
   Redmine::MenuManager.map :impasse_admin_menu do |menu|
-    menu.push :custom_field, {:controller => 'impasse_custom_fields'}, :caption => :label_custom_field_plural,
-    :html => {:class => 'custom_fields'}
+    menu.push :custom_field, {:controller => 'impasse_custom_fields'}, :caption => :label_custom_field_plural, :html => {:class => 'custom_fields'}
   end
 
-  Mime::Type.register "application/json", :json_impasse
+  Mime::Type.register_alias "application/json", :json_impasse
+
 end
 

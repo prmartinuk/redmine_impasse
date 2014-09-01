@@ -16,6 +16,10 @@ en:
   label_execution: "Execution"
   label_statistics_assign: "Statistics"
   label_screenshots: "Screenshots"
+  
+  label_test_plan_coverage:       "Coverage"
+  label_test_plan_coverage_cases: "Coverage of Test"
+  label_test_plan_coverage_back:  "Go Back"
 
   label_test_plan_new: "New test plan"
   label_test_case_new: "New test case"
@@ -27,12 +31,12 @@ en:
   label_num_of_actual_cases: "Actual"
   label_coverage: "Coverage"
 
-  label_impasse_stat_total_cases: "total cases" 
-  label_impasse_stat_total_executions: "executed cases"
-  label_impasse_stat_total_bugs: "bugs"
-  label_impasse_stat_open_bugs: "(open)"
-  label_impasse_stat_executions_rate: "progress rate"
-  label_impasse_stat_bugs_rate: "bugs rate"
+  label_impasse_stat_total_cases: "Total cases" 
+  label_impasse_stat_total_executions: "Executed cases"
+  label_impasse_stat_total_bugs: "Total bugs"
+  label_impasse_stat_open_bugs: "Open bugs"
+  label_impasse_stat_executions_rate: "Progress rate"
+  label_impasse_stat_bugs_rate: "Bugs rate"
   label_impasse_stat_remain_cases: "Remain"
   label_impasse_stat_expected_cases: "Estimate"
   label_impasse_stat_overview: "Overview"
@@ -82,3 +86,4 @@ en:
 
   text_assign_cases: "Drag and drop the test case here, you can add that case into the test plan."
   text_assign_users: "Drag and drop on the test case, you can assign tester to the test case."
+  add_issue_to_bug: "Add Issue"

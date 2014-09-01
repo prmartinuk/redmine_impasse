@@ -1,77 +1,190 @@
-class ImpasseTestCaseController < ImpasseAbstractController
-  unloadable
+class ImpasseTestCaseController < ApplicationController
 
-  REL = {1=>"test_project", 2=>"test_suite", 3=>"test_case"}
-  
+  helper :attachments
+  include AttachmentsHelper  
   helper :custom_fields
   include CustomFieldsHelper
-  include ImpasseScreenshotsHelper
 
   menu_item :impasse
-  before_filter :find_project, :authorize
+  before_filter :find_project#, :authorize
+  before_filter :get_settings, :only => [:index, :show, :new, :create, :destroy, :edit, :update]
+  accept_api_auth :index, :show, :create, :update, :destroy, :new
+
+  REL = {
+    1 => "test_project",
+    2 => "test_suite",
+    3 => "test_case"
+  }
 
   def index
     if User.current.allowed_to?(:move_issues, @project)
       @allowed_projects = Issue.allowed_target_projects_on_move
       @allowed_projects.delete_if{|project| @project.id == project.id }
     end
-    @setting = Impasse::Setting.find_by_project_id(@project) || Impasse::Setting.create(:project_id => @project.id)
   end
 
   def list
     if params[:node_id].to_i == -1
       root = Impasse::Node.find_by_name_and_node_type_id(@project.identifier, 1)
-      @nodes = Impasse::Node.find_children(root.id, params[:test_plan_id], params[:filters])
+      @nodes = root.find_children(params[:test_plan_id], params[:filters] || {})
       root.name = get_root_name(params[:test_plan_id])
       @nodes.unshift(root)
     else
-      @nodes = Impasse::Node.find_children(params[:node_id], params[:test_plan_id], params[:filters])
+      root = Impasse::Node.find(params[:node_id])
+      @nodes = root.find_children(params[:test_plan_id], params[:filters] || {})
     end
     jstree_nodes = convert(@nodes, params[:prefix])
-    
     render :json => jstree_nodes
   end
   
   def show
-    @node, @test_case = get_node(params[:node])
-    @setting = Impasse::Setting.find_by_project_id(@project) || Impasse::Setting.create(:project_id => @project.id)
-
-    render :partial => 'show'
+    @node = Impasse::Node.find(params[:id])
+    @test_case = @node.test_case
+    render :layout => false
   end
 
   def new
-    new_node
-    @setting = Impasse::Setting.find_by_project_id(@project) || Impasse::Setting.create(:project_id => @project.id)
+    @node = Impasse::Node.new(params[:node])
+    @test_case = Impasse::TestCase.new(params[:test_case])
+  end
 
-    if request.post? or request.put?
-      begin
-        ActiveRecord::Base.transaction do
-          @node.save!
-          save_keywords(@node, params[:node_keywords])
-          @test_case.id = @node.id
-          if @node.is_test_case? and params.include? :test_steps
-            @test_steps = params[:test_steps].collect{|i, ts| Impasse::TestStep.new(ts) }
-            @test_steps.each{|ts| raise ActiveRecord::RecordInvalid.new(ts) unless ts.valid? }
-            @test_case.test_steps.replace(@test_steps)
-          end
-          @test_case.save!
-          render :json => { :status => 'success', :message => l(:notice_successful_create), :ids => [@test_case.id] }
-        end
-      rescue ActiveRecord::ActiveRecordError => e
-        errors = []
-        errors.concat(@node.errors.full_messages).concat(@test_case.errors.full_messages)
-        if @test_steps
-          @test_steps.each {|test_step|
-            test_step.errors.full_messages.each {|msg|
-              errors << "##{test_step.step_number} #{msg}"
-            }
-          }
-        end
-        render :json => { :errors => errors }
-      end
-    else
-      render :partial => "new"
+  def create
+    @node = Impasse::Node.new(params[:node])
+    @test_case = Impasse::TestCase.new(params[:test_case])
+    @test_case.save_attachments(params[:attachments] || (params[:test_case] && params[:test_case][:uploads]))
+    @node.node_type_id = 3
+    if @node.parent_id.nil?
+      parent = Impasse::Node.find_by_name_and_node_type_id(@project.identifier, 1)
+      @node.parent_id = parent.id
     end
+    @node.node_order = Impasse::Node.where(:parent_id => @node.parent_id).map(&:node_order).max.to_i + 1
+    begin
+      success = false
+      ActiveRecord::Base.transaction do
+        success = @node.save!
+        success = @node.save_keywords!(params[:node_keywords]) && success
+        @test_case.id = @node.id
+        success = @test_case.save! && success
+        if params.include? :test_steps
+          @test_steps = []
+          sorted_params = Hash[params[:test_steps].map{|x, y| [y["step_number"].to_i, y]}.sort]
+          sorted_params.each do |i, ts|
+            ts.delete("id")
+            test_step = Impasse::TestStep.new(ts)
+            if test_step.valid?
+              @test_steps << test_step
+            end
+          end
+          success = @test_case.test_steps.replace(@test_steps) && success
+        end
+      end
+      if success
+        render_attachment_warning_if_needed(@test_case)
+        flash[:notice] = l(:notice_successful_create)
+        redirect_to :controller => :impasse_test_case, :action => :index, :anchor => "testcase-#{@node.id}"
+      end
+    rescue ActiveRecord::ActiveRecordError => e
+      errors = []
+      errors.concat(@node.errors.full_messages).concat(@test_case.errors.full_messages)
+      if @test_steps
+        @test_steps.each do |test_step|
+          test_step.errors.full_messages.each do |msg|
+            errors << "##{test_step.step_number} #{msg}"
+          end
+        end
+      end
+      flash.now[:error] = errors.join("<br>")
+      render :new
+    end
+  end
+
+  def edit
+    @node = Impasse::Node.find(params[:id])
+    @test_case = @node.test_case
+  end
+
+  def update
+    @node = Impasse::Node.find(params[:id])
+    @test_case = @node.test_case
+    @test_case.save_attachments(params[:attachments] || (params[:test_case] && params[:test_case][:uploads]))
+    @test_case.attributes = params[:test_case]
+    @node.attributes = params[:node]
+    begin
+      success = false
+      ActiveRecord::Base.transaction do
+        success = save_node(@node)
+        success = @node.save_keywords!(params[:node_keywords]) && success
+        success = @test_case.save! && success
+
+        if params.include? :test_steps
+          @test_steps = []
+          sorted_params = Hash[params[:test_steps].map{|x, y| [y["step_number"].to_i, y]}.sort]
+          sorted_params.each do |i, ts|
+            ts.delete("id")
+            test_step = Impasse::TestStep.new(ts)
+            if test_step.valid?
+              @test_steps << test_step
+            end
+          end
+          success = @test_case.test_steps.replace(@test_steps) && success
+        end
+      end
+
+      if success
+        render_attachment_warning_if_needed(@test_case)
+        flash[:notice] = l(:notice_successful_update)
+        redirect_to :controller => :impasse_test_case, :action => :index, :anchor => "testcase-#{@node.id}"
+      end
+
+    rescue ActiveRecord::ActiveRecordError=> e
+      errors = []
+      errors.concat(@node.errors.full_messages).concat(@test_case.errors.full_messages)
+      if @test_steps
+        @test_steps.each {|test_step|
+          test_step.errors.full_messages.each {|msg|
+            errors << "##{test_step.step_number} #{msg}"
+          }
+        }
+      end
+      flash.now[:error] = errors.join("<br>")
+      render :edit
+    end
+  end
+
+  def destroy
+    params[:node][:id].each do |id|
+      node = Impasse::Node.find(id)
+      planed_node = []
+      delete_test_suite = []
+      ActiveRecord::Base.transaction do
+        node.self_and_descendants.each do |child|
+          if child.planned?
+            Impasse::TestCase.update_all({:active => false}, ["id=?", child.id])
+            planed_node << child
+          else
+            if child.node_type_id == 2
+              delete_test_suite << child
+            end
+            if child.node_type_id == 3
+              Impasse::TestCase.delete(child.id)
+              child.destroy
+            end
+          end
+        end
+        delete_test_suite.each do |t_suite|
+          if planed_node.all? {|ic| not ic.self_and_ancestors.include? t_suite }
+            Impasse::TestSuite.delete(t_suite.id)
+            t_suite.destroy
+          end
+        end
+      end
+    end
+    render :json => {:status => true}
+  end
+
+  def keywords
+    keywords = Impasse::Keyword.find_all_by_project_id(@project).map{|r| r.keyword}
+    render :json => keywords
   end
 
   def copy
@@ -85,7 +198,6 @@ class ImpasseTestCaseController < ImpasseAbstractController
         nodes << node
       end
     end
-
     render :json => nodes
   end
 
@@ -93,237 +205,24 @@ class ImpasseTestCaseController < ImpasseAbstractController
     nodes = []
     params[:nodes].each do |i,node_params|
       ActiveRecord::Base.transaction do 
-        node, test_case = get_node(node_params)
+        node = Impasse::Node.find(node_params[:id])
+        node.attributes = node_params
         save_node(node)
         nodes << node
       end
     end
-
     render :json => nodes
   end
 
-  def edit
-    @node, @test_case = get_node(params[:node])
-    @test_case.attributes = params[:test_case]
-    @setting = Impasse::Setting.find_by_project_id(@project) || Impasse::Setting.create(:project_id => @project.id)
-
-    if request.post? or request.put?
-      begin
-        ActiveRecord::Base.transaction do
-          save_node(@node)
-          @test_case.save!
-          save_keywords(@node, params[:node_keywords])
-
-          if @node.is_test_case? and params.include? :test_steps
-            @test_steps = params[:test_steps].collect{|i, ts| Impasse::TestStep.new(ts) }
-            @test_steps.each{|ts| raise ActiveRecord::RecordInvalid.new(ts) unless ts.valid? }
-            @test_case.test_steps.replace(@test_steps)
-          end
-
-          if params[:attachments]
-            attachments = Attachment.attach_files(@test_case, params[:attachments])
-            create_thumbnail(attachments) if Object.const_defined?(:Magick)
-          end
-
-          render :json => { :status => 'success', :message => l(:notice_successful_update), :ids => [@test_case.id] }
-        end
-      rescue ActiveRecord::ActiveRecordError=> e
-        errors = []
-        errors.concat(@node.errors.full_messages).concat(@test_case.errors.full_messages)
-        if @test_steps
-          @test_steps.each {|test_step|
-            test_step.errors.full_messages.each {|msg|
-              errors << "##{test_step.step_number} #{msg}"
-            }
-          }
-        end
-        render :json => { :errors => errors }
-      end
-    else
-      render :partial => 'edit'
-    end
-  end
-
-  def destroy
-    params[:node][:id].each do |id|
-      node = Impasse::Node.find(id)
-
-      inactive_cases = []
-      ActiveRecord::Base.transaction do
-        node.all_decendant_cases_with_plan.each do |child|
-          if child.planned?
-            Impasse::TestCase.update_all({:active => false}, ["id=?", child.id])
-            inactive_cases << child
-          else
-            case child.node_type_id
-            when 2
-              if inactive_cases.all? {|ic| ! ic.path.start_with? child.path}
-                Impasse::TestSuite.delete(id)
-                child.destroy
-              end
-            when 3
-              Impasse::TestCase.delete(child.id)
-              child.destroy
-            end
-          end
-        end
-      end
-    end
-
-    render :json => {:status => true}
-  end
-
-  def keywords
-    keywords = Impasse::Keyword.find_all_by_project_id(@project).map{|r| r.keyword}
-    render :json => keywords
-  end
-
-  def copy_to_another_project
-    copy_node_ids = []
-    dest_project = Project.find(params[:dest_project_id])
-    params[:node_ids].each do |id|
-      nodes = Impasse::Node.find_with_children(id)
-      for node in nodes
-        copy_node_ids[node.level.to_i] ||= {}
-        copy_node_ids[node.level.to_i][node.id] = node
-      end
-      nodes[0].path.split(".").each_with_index do |pid, index|
-        next if pid.empty? or pid.to_i == nodes[0].id
-        copy_node_ids[index - 1] ||= {}
-        copy_node_ids[index - 1][pid.to_i] = nil
-      end
-    end
-
-    begin
-      keyword_hash = {}
-      parents = {}
-      dest_keywords = Impasse::Keyword.find_all_by_project_id(dest_project.id) || []
-      src_keywords  = Impasse::Keyword.find_all_by_project_id(@project.id) || []
-      
-      for src_keyword in src_keywords
-        dest_keyword = dest_keywords.detect {|keyword| keyword.keyword == src_keyword.keyword}
-        if dest_keyword
-          keyword_hash[dest_keyword.keyword] = dest_keyword.id
-        else
-          keyword = Impasse::Keyword.create!(:keyword => src_keyword.keyword, :project_id => dest_project.id)
-          keyword_hash[keyword.keyword] = keyword.id
-        end
-      end
-
-      copy_node_ids.each_with_index do |nodes, level|
-        nodes.each_pair do |id, node|
-          unless node
-            node = Impasse::Node.find(id)
-          end
-          ActiveRecord::Base.transaction do
-            new_node = node.dup
-            if new_node.node_type_id == 1
-              root = Impasse::Node.find_by_name_and_node_type_id(dest_project.identifier, 1)
-              if root
-                new_node = root
-                # TODO get max node order
-              else
-                new_node.name = dest_project.identifier
-              end
-            else
-              new_node.parent_id = parents[node.parent_id]
-            end
-            new_node.save!
-            parents[node.id] = new_node.id
-
-            case new_node.node_type_id
-            when 2
-              test_suite = Impasse::TestSuite.find(node.id)
-              new_test_suite = test_suite.dup
-              new_test_suite.id = new_node.id
-              new_test_suite.save!
-            when 3
-              test_case = Impasse::TestCase.find(:first, :conditions => { :id => node.id }, :include => :test_steps)
-              new_test_case = test_case.dup
-              new_test_case.id = new_node.id
-              new_test_case.save!
-              test_case.test_steps.each do |ts|
-                attr = ts.attributes
-                attr[:test_case_id] = new_test_case._id
-                Impasse::TestStep.create!(attr)
-              end
-            end
-            node.node_keywords.map{|nk| Impasse::NodeKeyword.create!(:keyword_id => nk.keyword_id, :node_id => new_node.id) }
-          end
-        end
-      end
-      flash[:notice] = l(:notice_successful_create)
-      redirect_to :action => :index, :project_id => dest_project
-    rescue
-      flash[:error] = l(:error_failed_to_update)
-      redirect_to :action => :index, :project_id => @project
-    end
-  end
-
   private
-  def new_node
-    @node = Impasse::Node.new(params[:node])
-
-    case params[:node_type]
-    when 'test_case'
-      @test_case = Impasse::TestCase.new(params[:test_case])
-      @test_case.active = true
-      @test_case.importance = 2
-      @node.node_type_id = 3
-    else
-      @test_case = Impasse::TestSuite.new(params[:test_case])
-      @node.node_type_id = 2
-    end
-  end
-
-  def get_node(node_params)
-    node = Impasse::Node.find(node_params[:id])
-    node.attributes = node_params
-
-    if node.is_test_case?
-      test_case = Impasse::TestCase.find(node_params[:id])
-    else
-      test_case = Impasse::TestSuite.find(node_params[:id])
-    end
-
-    [node, test_case]
+  def get_settings
+    @setting = Impasse::Setting.find_by_project_id(@project) || Impasse::Setting.create(:project_id => @project.id)
   end
 
   def save_node(node)
-    old_node = node.clone
-    node.save!
-    node.update_siblings_order!
-
-    # If node has children, must update the node path of child nodes.
-    node.update_child_nodes_path(old_node.path)
-  end
-
-  def save_keywords(node, keywords = "")
-    project_keywords = Impasse::Keyword.find_all_by_project_id(@project)
-    words = keywords.split(/\s*,\s*/)
-    words.delete_if {|word| word =~ /^\s*$/}.uniq!
-
-    node_keywords = node.node_keywords
-    keeps = []
-    words.each{|word|
-      keyword = project_keywords.detect {|k| k.keyword == word}
-      if keyword
-        node_keyword = node_keywords.detect {|nk| nk.keyword_id == keyword.id}
-        if node_keyword
-          keeps << node_keyword.id
-        else
-          new_node_keyword = Impasse::NodeKeyword.create(:keyword_id => keyword.id, :node_id => node.id)
-          keeps << new_node_keyword.id
-        end
-      else
-        new_keyword = Impasse::Keyword.create(:keyword => word, :project_id => @project.id)
-        new_node_keyword = Impasse::NodeKeyword.create(:keyword_id => new_keyword.id, :node_id => node.id)
-        keeps << new_node_keyword.id
-      end
-    }
-    node_keywords.each{|node_keyword|
-      node_keyword.destroy unless keeps.include? node_keyword.id
-    }
+    success = node.save!
+    success = node.update_siblings_order! && success
+    return success
   end
 
   def get_root_name(test_plan_id)
@@ -369,9 +268,9 @@ class ImpasseTestCaseController < ImpasseAbstractController
     test_case.save!
 
     if original_node.is_test_suite?
-      original_node.children.each {|child|
+      original_node.children.each do |child|
         copy_node(child, node.id, level + 1)
-      }
+      end
     end
     [node, test_case]
   end
@@ -379,17 +278,28 @@ class ImpasseTestCaseController < ImpasseAbstractController
   def convert(nodes, prefix='node')
     node_map = {}
     jstree_nodes = []
-
+    node_test_cases = nodes.reject{|x| x if not x.is_test_case?}
     for node in nodes
       jstree_node = {
         'attr' => {'id' => "#{prefix}_#{node.id}" , 'rel' => REL[node.node_type_id] },
-        'data' => { 'title' => node.name },
+        'data' => {},
         'children'=>[]}
-      if node.node_type_id == 2
+
+      if node.is_test_project?
+        jstree_node['data']['title'] = node.name
+      end
+
+      if node.is_test_suite?
+        count_children = node_test_cases.collect{|x| x if node.lft < x.lft and node.rgt > x.rgt }.compact.count
+        jstree_node['data']['title'] = "#{node.name} (#{count_children})"
         jstree_node['state'] = 'closed'
       end
-      if node.node_type_id == 3 and !node.active?
-        jstree_node['attr']['data-inactive'] = true
+
+      if node.is_test_case?
+        jstree_node['data']['title'] = "#{node.id} - #{node.name}"
+        if not node.active?
+          jstree_node['attr']['data-inactive'] = true
+        end
       end
 
       node_map[node.id] = jstree_node

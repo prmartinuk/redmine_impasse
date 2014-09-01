@@ -1,32 +1,43 @@
 module Impasse
   class Node < ActiveRecord::Base
     unloadable
-    set_table_name "impasse_nodes"
+    self.table_name = "impasse_nodes"
     self.include_root_in_json = false
 
-    belongs_to :parent, :class_name=>'Node', :foreign_key=> :parent_id
-    has_many   :children, :class_name=> 'Node', :foreign_key=> :parent_id
+    acts_as_tree order: "id"
+    acts_as_nested_set :order => "parent_id, node_order", :dependent => :destroy
     has_many   :node_keywords, :class_name => "Impasse::NodeKeyword", :dependent => :delete_all
     has_many   :keywords, :through => :node_keywords
+    has_one :test_case, :class_name => "Impasse::TestCase", :foreign_key => "id"
+    has_one :test_suite, :class_name => "Impasse::TestSuite", :foreign_key => "id"
 
     validates_presence_of :name
 
-    if Rails::VERSION::MAJOR < 3 or (Rails::VERSION::MAJOR == 3 and Rails::VERSION::MINOR < 1)
-      def dup
-        clone
-      end
+    def hierarchy
+      parents = self.self_and_ancestors || []
+      descendants = self.descendants || []
+      node_hierarchy = parents | descendants
     end
 
-    def self.find_with_children(id)
-      node = self.find(id)
-      self.find_by_sql([ <<-END_OF_SQL, "#{node.path}%"])
-        SELECT distinct parent.*, LENGTH(parent.path) - LENGTH(REPLACE(parent.path,'.','')) - 2 AS level
-          FROM impasse_nodes AS parent
-          JOIN impasse_nodes AS child
-            ON parent.path = SUBSTR(child.path, 1, LENGTH(parent.path))
-         WHERE parent.path like ?
-        ORDER BY level, node_order
-      END_OF_SQL
+    def self.find_version(project, show_closed = false)
+      versions = project.shared_versions || []
+      versions = versions.uniq.sort
+      unless show_closed
+        versions.reject! {|version| version.closed? || version.completed? }
+      end
+      versions
+    end
+
+    def find_with_children
+      self.descendants
+    end
+
+    def find_with_children_test_case
+      self.descendants.where(:node_type_id => 3)
+    end
+
+    def find_with_children_test_suite
+      self.descendants.where(:node_type_id => 2)
     end
 
     def is_test_case?
@@ -37,231 +48,74 @@ module Impasse
       self.node_type_id == 2
     end
 
+    def is_test_project?
+      self.node_type_id == 1
+    end
+
+
     def active?
-      !attributes['active'] or attributes['active'].to_i == 1 or attributes['active'].is_a? TrueClass or attributes['active'] == 't'
+      if self.is_test_case?
+        return self.test_case.active
+      else
+        return false
+      end
     end
 
     def planned?
-      attributes['planned'].to_i == 1 or attributes['planned'].is_a? TrueClass or attributes['planned'] == 't'
-    end
-
-    def self.find_children(node_id, test_plan_id=nil, filters=nil, limit=300)
-      sql = <<-'END_OF_SQL'
-      SELECT node.*, tc.active
-      FROM (
-        SELECT distinct parent.*, LENGTH(parent.path) - LENGTH(REPLACE(parent.path,'.','')) AS level
-          FROM impasse_nodes AS parent
-        JOIN impasse_nodes AS child
-          ON parent.path = SUBSTR(child.path, 1, LENGTH(parent.path))
-        <%- if conditions.include? :test_plan_id -%>
-        LEFT JOIN impasse_test_cases AS tc
-          ON tc.id=child.id
-        LEFT JOIN impasse_test_plan_cases AS tpts
-          ON tc.id=tpts.test_case_id
-        <%- end -%>
-        WHERE 1=1
-        <%- if conditions.include? :test_plan_id -%>
-          AND tpts.test_plan_id=:test_plan_id
-        <%- end -%>
-        <%- if conditions.include? :path -%>
-          AND parent.path LIKE :path
-        <%- end -%>
-        <%- if conditions.include? :level -%>
-          AND LENGTH(parent.path) - LENGTH(REPLACE(parent.path,'.','')) <= :level
-        <%- end -%>
-        <%- if conditions.include? :filters_query or conditions.include? :filters_keywords -%>
-        AND
-          <%- if conditions.include? :filters_query -%>
-             child.name like :filters_query
-             <%- if conditions.include? :filters_keywords -%>AND <%- end -%>
-          <%- end -%>
-          <%- if conditions.include? :filters_keywords -%>
-            exists (
-            SELECT 1 FROM impasse_node_keywords AS nk
-              JOIN impasse_keywords AS k ON k.id = nk.keyword_id
-            WHERE nk.node_id = child.id
-              AND k.keyword in (:filters_keywords))
-          <%- end -%>
-        <%- end -%>
-        ORDER BY level, node_order
-      ) AS node
-      LEFT OUTER JOIN impasse_test_cases AS tc
-        ON node.id = tc.id
-      WHERE 1=1
-      <%- unless conditions.include? :filters_inactive -%>
-        AND tc.active = :true OR tc.active IS NULL
-      <%- end -%>
-      END_OF_SQL
-
-      conditions = { :true => true }
-    
-      unless test_plan_id.nil?
-        conditions[:test_plan_id] = test_plan_id
-      end
-
-      unless node_id.to_i == -1
-        node = find(node_id)
-        child_counts = self.count(:conditions => [ "path like ?", "#{node.path}_%"])
-        if child_counts > limit
-          conditions[:level] = node.path.count('.') + 1
-        end
-        conditions[:path] = "#{node.path}_%"
-      end
-    
-      if filters and filters[:query]
-        conditions[:filters_query] = "%#{filters[:query]}%"
-      end
-
-      if filters and filters[:keywords]
-        keywords = filters[:keywords].split(/\s*,\s*/).delete_if{|k| k == ""}.uniq
-        conditions[:filters_keywords] = keywords
-      end
-
-      if filters and filters[:inactive]
-        conditions[:filters_inactive] = true
-      end
-
-      find_by_sql([ERB.new(sql, nil, '-').result(binding), conditions])
-    end
-
-    def self.find_planned(node_id, test_plan_id=nil, filters={}, limit=300)
-      sql = <<-'END_OF_SQL'
-    SELECT T.*, LENGTH(T.path) - LENGTH(REPLACE(T.path,'.','')) AS level, E.expected_date, E.status, users.firstname, users.lastname
-      FROM (
-        SELECT distinct parent.*, tpc.test_plan_id
-          FROM impasse_nodes AS parent
-          JOIN impasse_nodes AS child
-            ON parent.path = SUBSTR(child.path, 1, LENGTH(parent.path))
-     LEFT JOIN impasse_test_cases AS tc
-            ON child.id = tc.id
-     LEFT JOIN impasse_test_plan_cases AS tpc
-            ON tc.id=tpc.test_case_id
-     LEFT JOIN impasse_executions AS exec
-            ON tpc.id = exec.test_plan_case_id
-         WHERE tpc.test_plan_id=:test_plan_id
-     <%- if conditions.include? :level -%>
-           AND LENGTH(parent.path) - LENGTH(REPLACE(parent.path,'.','')) <= :level
-     <%- end -%>
-     <%- if conditions.include? :path -%>
-           AND parent.path LIKE :path
-     <%- end -%>
-     <%- if [:user_id, :execution_status, :expected_date].any? {|key| conditions.include? key} -%>
-       <%- if conditions.include? :user_id -%>
-           AND tester_id = :user_id
-       <%- end -%>
-       <%- if conditions.include? :execution_status -%>
-           AND (exec.status IN (:execution_status) <%- if conditions[:execution_status].include? "0" %>OR exec.status IS NULL<% end %> )
-       <%- end -%>
-       <%- if conditions.include? :expected_date -%>
-           AND exec.expected_date <%= conditions[:expected_date_op] %> :expected_date
-       <%- end -%>
-     <%- end -%>
-      ) AS T
-LEFT JOIN impasse_test_plan_cases
-       ON T.id = impasse_test_plan_cases.test_case_id AND
-          T.test_plan_id = impasse_test_plan_cases.test_plan_id
-LEFT JOIN impasse_executions AS E
-       ON E.test_plan_case_id = impasse_test_plan_cases.id
-LEFT OUTER JOIN users
-       ON users.id = tester_id
-ORDER BY level, T.node_order
-      END_OF_SQL
-
-      conditions = { :test_plan_id => test_plan_id }
-
-      unless node_id.to_i == -1
-        node = self.find(node_id)
-        child_counts = self.count(:conditions => [ "path like ?", "#{node.path}_%"])
-        if child_counts > limit
-          conditions[:level] = node.path.count('.') + 1
-        end
-        conditions[:path] = "#{node.path}_%"
-      else
-        child_counts = Impasse::TestPlanCase.count(:conditions => [ "test_plan_id=?", test_plan_id])
-        if child_counts > limit
-          conditions[:level] = 3
-        end
-      end
-
-      if filters[:myself]
-        conditions[:user_id] = User.current.id
-      end
-
-      if filters[:execution_status]
-        conditions[:execution_status] = []
-        if filters[:execution_status].is_a? Array
-          filters[:execution_status].each {|param|
-            conditions[:execution_status] << param.to_s
-          }
+      if self.is_test_case?
+        if self.test_case.test_plans.any?
+          return true
         else
-          conditions[:execution_status] << filters[:execution_status].to_s
+          return false
+        end
+      else
+        return false
+      end
+    end
+
+    def find_children(test_plan_id, filters={})
+      ret_nodes = []
+      nodes = self.find_with_children_test_case
+      if filters.include? "query"
+        filters["query"].split.each do |word|
+          nodes = nodes.where("LOWER(name) LIKE '%#{word.mb_chars.downcase.to_s}%'")
         end
       end
-
-      if filters[:expected_date]
-        conditions[:expected_date] = filters[:expected_date]
-        conditions[:expected_date_op] = filters[:expected_date_op] || '='
+      if filters.include? "keywords"
+        keywords = filters["keywords"].split(/\s*,\s*/).delete_if{|k| k == ""}.uniq
+        nodes = nodes.joins(:keywords).where('"impasse_keywords".keyword IN (?)', keywords)        
       end
-
-      nodes = self.find_by_sql([ERB.new(sql, nil, '-').result(binding), conditions])
-      if nodes.size > 0 and nodes[0].node_type_id == 1
-        test_plan = Impasse::TestPlan.find(test_plan_id)
-        nodes[0].name = test_plan.name
+      nodes.each do |node|
+        add_to_list = true
+        if node.is_test_case?
+          test_case = TestCase.find(node.id)
+          unless filters.include? "inactive"
+            unless test_case.active?
+              add_to_list = false
+            end
+          end
+          unless test_plan_id.nil?
+            if not test_case.test_plans.map(&:id).include? test_plan_id.to_i
+              add_to_list = false
+            end
+          end
+        end
+        if add_to_list
+          ret_nodes << node
+        end
       end
-      nodes
-    end
-
-    def all_decendant_cases
-      sql = <<-'END_OF_SQL'
-      SELECT distinct parent.*
-        FROM impasse_nodes AS parent
-      JOIN impasse_nodes AS child
-        ON parent.path = SUBSTR(child.path, 1, LENGTH(parent.path))
-      LEFT JOIN impasse_test_cases AS tc
-        ON child.id = tc.id
-      WHERE parent.path LIKE :path
-        AND parent.node_type_id=3
-      END_OF_SQL
-      conditions = {:path => "#{self.path}%"}
-      Node.find_by_sql([ERB.new(sql).result(binding), conditions])
-    end
-
-    def all_decendant_cases_with_plan
-      sql = <<-'END_OF_SQL'
-      SELECT distinct parent.*, LENGTH(parent.path) - LENGTH(REPLACE(parent.path,'.','')) AS level,
-             tc.active, exists (SELECT * FROM impasse_test_plan_cases AS tpc WHERE tpc.test_case_id = parent.id) AS planned
-        FROM impasse_nodes AS parent
-      JOIN impasse_nodes AS child
-        ON parent.path = SUBSTR(child.path, 1, LENGTH(parent.path))
-      LEFT JOIN impasse_test_cases AS tc
-        ON child.id = tc.id
-      WHERE parent.path LIKE :path
-      ORDER BY level DESC
-      END_OF_SQL
-      conditions = {:path => "#{self.path}%"}
-      Node.find_by_sql([ERB.new(sql).result(binding), conditions])
-    end
-
-    def save!
-      if new_record?
-        # dummy path
-        write_attribute(:path, ".")
-        super
+      test_suites = self.find_with_children_test_suite
+      if ret_nodes.count > 0
+        nodes_group_by_parent = ret_nodes.group_by(&:parent_id)
+        ret_nodes += test_suites
+        ret_nodes.uniq.sort_by(&:lft)
+      else
+        if self.parent_id.nil?
+          test_suites.uniq.sort_by(&:lft)
+        else
+          return []
+        end
       end
-
-      recalculate_path
-      super
-    end
-
-    def save
-      if new_record?
-        # dummy path
-        write_attribute(:path, ".")
-        return false unless super
-      end
-
-      recalculate_path
-      super
     end
 
     def update_siblings_order!
@@ -274,33 +128,89 @@ ORDER BY level, T.node_order
         siblings << self
       end
       
-      change_nodes = []
       siblings.each_with_index do |sibling, i|
         next if sibling.id == self.id or sibling.node_order == i
         sibling.node_order = i
-        change_nodes << sibling
+        sibling.save!
       end
-
-      change_nodes.each {|node| node.save! }
-    end
- 
-    def update_child_nodes_path(old_path)
-      sql = <<-END_OF_SQL
-      UPDATE impasse_nodes
-      SET path = replace(path, '#{old_path}', '#{self.path}')
-      WHERE path like '#{old_path}_%'
-      END_OF_SQL
-      
-      connection.update(sql)
+      self.update_order_lft
     end
 
-    private
-    def recalculate_path
-      if parent.nil?
-        write_attribute(:path, ".#{read_attribute(:id)}.")
-      else
-        write_attribute(:path, "#{parent.path}#{read_attribute(:id)}.")
+    def update_order_lft
+      unless self.root.valid?
+        Node.rebuild!
+      end
+      self.root.children.sort_by(&:node_order).each do |sibling|
+        unless sibling.prev.nil?
+          sibling.move_to_right_of(sibling.prev)
+        else
+          sibling.move_to_child_of(sibling.parent)
+        end
+        if sibling.children.any?
+          Node.update_order_level_children(sibling.children.sort_by(&:node_order), sibling)
+        end
       end
     end
+
+    def self.update_order_level_children(childrens, parent)
+      childrens.each do |sibling|
+        unless sibling.prev.nil?
+          sibling.move_to_right_of(sibling.prev)
+        else
+          sibling.move_to_child_of(parent)
+        end
+        if sibling.children.any?
+          Node.update_order_level_children(sibling.children.sort_by(&:node_order), sibling)
+        end
+      end
+    end
+
+    def next(count=0)
+      begin
+        Node.where("node_order > ? and parent_id = ?", self.node_order.to_i + count.to_i, self.parent.id).order('node_order ASC').first
+      rescue
+        nil
+      end
+    end
+
+    def prev(count=0)
+      begin
+        Node.where("node_order < ? and parent_id = ?", self.node_order.to_i + count.to_i, self.parent.id).order('node_order DESC').first
+      rescue
+        nil
+      end
+    end
+
+    def save_keywords!(keywords)
+      root_node = self.root
+      project = Project.find_by_identifier(root_node.name)
+      project_keywords = Impasse::Keyword.find_all_by_project_id(project)
+      words = keywords.split(/\s*,\s*/)
+      words.delete_if {|word| word =~ /^\s*$/}.uniq!
+
+      node_keywords = self.node_keywords
+      keeps = []
+      words.each do |word|
+        keyword = project_keywords.detect {|k| k.keyword == word}
+        if keyword
+          node_keyword = node_keywords.detect {|nk| nk.keyword_id == keyword.id}
+          if node_keyword
+            keeps << node_keyword.id
+          else
+            new_node_keyword = Impasse::NodeKeyword.create(:keyword_id => keyword.id, :node_id => self.id)
+            keeps << new_node_keyword.id
+          end
+        else
+          new_keyword = Impasse::Keyword.create(:keyword => word, :project_id => project.id)
+          new_node_keyword = Impasse::NodeKeyword.create(:keyword_id => new_keyword.id, :node_id => self.id)
+          keeps << new_node_keyword.id
+        end
+      end
+
+      node_keywords.each do |node_keyword|
+        node_keyword.destroy unless keeps.include? node_keyword.id
+      end
+    end
+
   end
 end

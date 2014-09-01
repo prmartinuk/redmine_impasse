@@ -1,0 +1,6 @@
+<h2>Edit Test Suite</h2>
+<%= labelled_form_for @test_suite, :as => :test_suite, :url => { :controller => :impasse_test_suite, :action => :update, :id => @node.id }, :method => 'PUT' do |f| %>
+  <%= render :partial => "form", :locals => {:form => f} %>
+  <button type="submit" class="ui-button-submit"><%=l(:button_update)%></button>
+<% end %>
+<% content_for :sidebar %>

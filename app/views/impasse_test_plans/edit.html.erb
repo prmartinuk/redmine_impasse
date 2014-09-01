@@ -3,17 +3,71 @@
     link_to(l(:label_test_plans_list), { :controller => :impasse_test_plans, :action => :index, :project_id => @project})
 ]%>
 <h2><%=h @test_plan.name %></h2>
+<%= labelled_form_for @test_plan, :as => :test_plan, :url => { :action => :update, :id => @test_plan.id}, :method => "PUT" do |f| %>
+  <div class="box">
+    <%= hidden_field_tag 'set_filter', '1' %>
+    <div id="query_form_content" class="hide-when-print">
+      <fieldset id="filters" class="collapsible <%= @query.new_record? ? "" : "collapsed" %>">
+        <legend onclick="toggleFieldset(this);"><%= l(:label_filter_plural) %></legend>
+        <div style="<%= @query.new_record? ? "" : "display: none;" %>">
+          <%= render :partial => 'queries/filters', :locals => {:query => @query} %>
+        </div>
+      </fieldset>
+      <fieldset id="issues" class="collapsible collapsed">
+        <legend onclick="toggleFieldset(this);"><%= l(:label_issue_plural) %></legend>
+        <div style="display: none;">
+          <div id="issues-tree"></div>
+        </div>
+      </fieldset>
+    </div>
 
-<%= render_impasse_tabs %>
-<% if Rails::VERSION::MAJOR < 3 %>
-  <% labelled_tabular_form_for :test_plan, @test_plan, {} do |f| %>
+    <script type="text/javascript">
+      var IMPASSE = {
+        url: {
+          testPlanEdit: "<%= url_for :controller=>:impasse_test_plans, :action=>:edit, :project_id=>@project, :id => @test_plan.id %>",
+          testPlanEditJs: "<%= url_for :controller=>:impasse_test_plans, :action=>:edit, :project_id=>@project, :id => @test_plan.id, :format=> 'js' %>"
+        }
+      };
+
+      $("a#impasse_pagination_link").live('click', function() {
+        var url = $(this).attr('href');
+        $.ajax({
+            url: url,
+            data: { },
+            success: function(update_issue_tree) {
+              update_issue_tree;
+            }
+        });
+        return false;
+      });
+
+      function load_issues_table(){
+        var form = $("#edit_test_plan");
+        var data = window.location.search.substring(1);
+        $.ajax({
+          url: IMPASSE.url.testPlanEditJs,
+          data: data,
+          success: function(update_issue_tree) {
+            update_issue_tree;
+          }
+        });
+      }
+      load_issues_table();
+
+      $("a#submit_query_form").live('click', function(){
+        var form = $("#edit_test_plan");
+        var data = form.serialize();
+        window.location.href = IMPASSE.url.testPlanEdit + '?' + data
+        return false;
+      });
+
+    </script>
+    <p class="buttons hide-when-print">
+      <%= link_to l(:button_apply), '#', :class => 'icon icon-checked', :id => 'submit_query_form' %>
+      <%= link_to l(:button_clear), { :set_filter => 1, :project_id => @project }, :class => 'icon icon-reload'  %>
+    </p>
     <%= render :partial => "form", :locals => {:form => f} %>
-    <%= submit_tag l(:button_update) %>
-  <% end %>
-<% else %>
-  <% output = labelled_form_for @test_plan, :as => :test_plan, :url => { :action => :edit }  do |f| %>
-    <%= render :partial => "form", :locals => {:form => f} %>
-    <%= submit_tag l(:button_update) %>
-  <% end %>
-  <%= output %>
+  </div>
+  <%= submit_tag l(:button_update) %>
 <% end %>
+

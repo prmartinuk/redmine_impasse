@@ -1,167 +1,42 @@
 module ImpassePlugin
   class Hook < Redmine::Hook::ViewListener
-    def exception(context, ex)
-      context[:controller].send(:flash)[:error] = "Impasse error: #{ex.message} (#{ex.class})"
-      if Rails::VERSION::MAJOR < 3
-        RAILS_DEFAULT_LOGGER.error "#{ex.message} (#{ex.class}): " + ex.backtrace.join("\n")
-      else
-        Rails.logger.error "#{ex.message} (#{ex.class}): " + ex.backtrace.join("\n")
+
+    def view_issues_show_details_bottom(context = {})
+      return '' unless context[:issue].project.module_enabled? 'impasse'
+      render_execution_bug = false
+      execution_bug = Impasse::ExecutionBug.find(:all, :joins => :execution, :conditions => { :bug_id => context[:issue].id })
+      if execution_bug.any?
+        render_execution_bug = true
       end
-    end
 
-    def view_issues_show_details_bottom(context={ })
-      begin
-        issue = context[:issue]
-
-        return '' unless issue.project.module_enabled? 'impasse'
-
-        project = context[:project]
-        snippet = ''
-  
-        setting = Impasse::Setting.find_by_project_id(project.id) || Impasse::Setting.create(:project_id => project.id)
-
-        if setting.bug_tracker_id == issue.tracker_id
-          snippet << show_execution_bugs(issue, project)
-        end
-        if setting.requirement_tracker and setting.requirement_tracker.include? issue.tracker_id.to_s
-          snippet << show_num_of_cases(issue, project)
-        end
-
-        return snippet
-      rescue => e
-        exception(context, e)
-        return ''
+      if render_execution_bug
+        return context[:controller].send(:render_to_string, {
+          :partial => 'impasse_hooks/execution_bugs', :locals => {
+            :executions => execution_bug.map(&:execution).uniq,
+            :context => context
+          }
+        })
       end
     end
 
     def view_issues_show_description_bottom(context = {})
-      begin
-        issue = context[:issue]
-
-        return '' unless issue.project.module_enabled? 'impasse'
-
-        project = context[:project]
-        snippet = ''
-  
-        setting = Impasse::Setting.find_by_project_id(project.id) || Impasse::Setting.create(:project_id => project.id)
-        if setting.requirement_tracker and setting.requirement_tracker.include? issue.tracker_id.to_s
-          snippet << show_requirement_cases(issue, project)
-        end
-        return snippet
-      rescue => e
-        exception(context, e)
-        return ''
-      end        
-    end
-
-    def view_issues_form_details_bottom(context = {})
-      begin
-        snippet = ''
-        issue = context[:issue]
-        return '' unless issue.project.module_enabled?('impasse')
-
-        project = context[:project]
-        
-        setting = Impasse::Setting.find_by_project_id(project.id) || Impasse::Setting.create(:project_id => project.id)
-
-        if setting.requirement_tracker
-          style = (setting.requirement_tracker.include? issue.tracker_id.to_s) ? '' : 'style="display: none;"'
-          req_tracker_ids = "[#{setting.requirement_tracker.select{|e| e != "" }.join(',')}]"
-          @requirement_issue = Impasse::RequirementIssue.find_by_issue_id(issue.id)
-          snippet << "<p #{style}>" <<
-            "<label>#{l(:field_num_of_cases)}</label>" <<
-            text_field('requirement_issue', 'num_of_cases', :size => 3) << '</p>' << %{
-              <script>
-                new Form.Element.EventObserver('issue_tracker_id', function(element, value) {
-                if ($A(#{req_tracker_ids}).indexOf(Number(value)) >= 0)
-                  $('requirement_issue_num_of_cases').up().show();
-                else
-                  $('requirement_issue_num_of_cases').up().hide();
-                });
-              </script>
-            }
-        end
-
-        return snippet
-      rescue => e
-        exception(context, e)
-        return ''
-      end
-
-    end
-
-    def controller_issues_new_after_save(context={ })
-      params = context[:params]
       issue = context[:issue]
 
-      setting = Impasse::Setting.find_by_project_id(issue.project.id) || Impasse::Setting.create(:project_id => issue.project.id)
-      if setting.requirement_tracker and setting.requirement_tracker.include? issue.tracker_id.to_s
-        num_of_cases = params[:requirement_issue] && params[:requirement_issue][:num_of_cases].to_i || 0
-        requirement = Impasse::RequirementIssue.new(:issue_id => issue.id)
-        requirement.num_of_cases = num_of_cases
-        requirement.save!
-      end
-    end
-    
-    def controller_issues_edit_after_save(context={ })
-      params = context[:params]
-      issue = context[:issue]
+      return '' unless issue.project.module_enabled? 'impasse'
 
-      if params[:requirement_issue]
-        requirement = Impasse::RequirementIssue.find_by_issue_id(issue.id) || Impasse::RequirementIssue.new(:issue_id => issue.id)
-        requirement.num_of_cases = params[:requirement_issue][:num_of_cases].to_i
-        requirement.save!
-      end
-    end
-
-    private
-    def show_execution_bugs(issue, project)
-      execution_bug = Impasse::ExecutionBug.find(:first, :joins => [{ :execution => { :test_plan_case => :test_plan}}],
-                                                 :conditions => { :bug_id => issue.id })
-        
-      if execution_bug and execution_bug.execution and execution_bug.execution.test_plan_case
-        test_plan_case = execution_bug.execution.test_plan_case
-        return "<tr><th>#{l(:field_test_case)}</th><td>" <<
-          link_to(test_plan_case.test_case.node.name, {
-                    :controller => :impasse_executions,
-                    :action => :index,
-                    :project_id => project,
-                    :id => test_plan_case.test_plan.id,
-                    :anchor => "testcase-#{test_plan_case.test_case.id}"
-                  }) <<
-          "</td></tr>"
-      end
-      ''
-    end
-
-    def show_num_of_cases(issue, project)
-      requirement = Impasse::RequirementIssue.find_by_issue_id(issue.id)
-      num_of_cases = requirement ? requirement.num_of_cases : 0
-      "<tr><th>#{l(:field_num_of_cases)}:</th><td>#{num_of_cases}</td></tr>"
-    end
-
-    def show_requirement_cases(issue, project)
-      requirement = Impasse::RequirementIssue.find(
-        :first, :conditions => { :issue_id => issue.id },
-        :include => :test_cases)
+      project = context[:project]
       snippet = ''
-      if requirement and requirement.test_cases
-        snippet << "<hr/><p><strong>#{l(:label_test_case_plural)}</strong></p><table class=\"list\">"
-        for test_case in requirement.test_cases
-          snippet <<
-            "<tr><td>" <<
-            link_to(test_case.node.name, {
-                      :controller => :impasse_test_case,
-                      :action => :index,
-                      :project_id => project,
-                      :anchor => "testcase-#{test_case.id}"
-                    }) <<
-            "</td></tr>"
-          
-        end
-        snippet << "</table>"
-      end
-      snippet
+
+      requirement = Impasse::RequirementIssue.find_by_issue_id(context[:issue].id)
+      return '' if requirement.nil?
+      return '' unless requirement.test_cases.where(:active => true).count > 0
+      return context[:controller].send(:render_to_string, {
+        :partial => 'impasse_hooks/requirement_cases', :locals => {
+          :context => context,
+          :test_cases => requirement.test_cases.where(:active => true).order(:id)
+        }
+      })
     end
+
   end
 end

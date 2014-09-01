@@ -1,0 +1,18 @@
+<div id="errorExplanation" style="display:none"></div>
+<div class="box tabular">
+  <%= hidden_field_tag 'node[parent_id]', @node.parent_id %>
+  <p>
+    <label><span class="required">*</span><%=l :field_name %></label>
+    <%= text_field_tag 'node[name]', @node.name, :size => 50, :required=>true %>
+  </p>
+  <p><%= form.text_area :details, :rows => 10, :class => 'wiki-edit' %></p>
+  <%= wikitoolbar_for 'test_suite_details' %>
+  <p>
+    <label><%= l(:field_keywords) %></label>
+    <input type="text" name="node_keywords" value="<%= @node.keywords.collect{|w| w.keyword}.join(",")%>"/>
+  </p>
+  <% @test_suite.custom_field_values.each do |value| %>
+    <p><%= custom_field_tag_with_label :test_suite, value %></p>
+  <% end %>
+</div>
+

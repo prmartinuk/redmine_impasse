@@ -1,4 +1,4 @@
-class ImpasseSettingsController < ImpasseAbstractController
+class ImpasseSettingsController < ApplicationController
   unloadable
 
   before_filter :find_project_by_project_id, :authorize
@@ -30,7 +30,7 @@ class ImpasseSettingsController < ImpasseAbstractController
         @project.execution_custom_fields  = custom_fields_by_type['Impasse::ExecutionCustomField']
         @setting.save!
         flash[:notice] = l(:notice_successful_update)
-        redirect_to :controller => '/projects', :action => 'settings', :id => @project, :tab => 'impasse'
+        redirect_to :controller => 'projects', :action => 'settings', :id => @project, :tab => 'impasse'
       end
     end
   end

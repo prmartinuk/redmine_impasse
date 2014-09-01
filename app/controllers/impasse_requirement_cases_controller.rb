@@ -1,4 +1,4 @@
-class ImpasseRequirementCasesController < ImpasseAbstractController
+class ImpasseRequirementCasesController < ApplicationController
   unloadable
 
 end

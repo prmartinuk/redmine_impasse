@@ -1,23 +1,19 @@
-class ImpasseRequirementIssuesController < ImpasseAbstractController
+class ImpasseRequirementIssuesController < ApplicationController
   unloadable
+
+  before_filter :find_project_by_project_id, :authorize
 
   helper :queries
   include QueriesHelper
   helper :sort
   include SortHelper
   include IssuesHelper
+  helper :projects
+  include ImpasseRequirementIssuesHelper
 
   def index
-    @project = Project.find(params[:project_id])
+    @versions = Impasse::Node.find_version(@project)
     setting = Impasse::Setting.find_by_project_id(@project.id)
-    params[:set_filter] = true
-    params[:fields] ||= []
-    params[:fields] << 'tracker_id'
-    params[:values] ||= {}
-    params[:values][:tracker_id] = setting.requirement_tracker.select{|e| e != ""}
-    params[:operators] ||= {}
-    params[:operators][:tracker_id] = "="
-
     retrieve_query
     sort_init(@query.sort_criteria.empty? ? [['id', 'desc']] : @query.sort_criteria)
     sort_update(@query.sortable_columns)
@@ -34,7 +30,10 @@ class ImpasseRequirementIssuesController < ImpasseAbstractController
                               :limit => @limit)
       @issue_count_by_group = @query.issue_count_by_group
 
-      render :index, :layout => !request.xhr?
+      respond_to do |format|
+        format.html { render :index, :layout => false }
+        format.js { render :layout => false, :partial => 'impasse_common/render_issues', :locals => {:ctrl => "impasse_requirement_issues", :query => @query, :issue_pages => @issue_pages, :issue_count => @issue_count, :issues => @issues} }
+      end
     end
   rescue ActiveRecord::RecordNotFound
     render_404
@@ -47,7 +46,7 @@ class ImpasseRequirementIssuesController < ImpasseAbstractController
       if node.is_test_case?
         create_requirement_case(requirement_issue.id, node.id)
       else
-        for test_case_node in node.all_decendant_cases
+        for test_case_node in node.find_with_children_test_case
           create_requirement_case(requirement_issue.id, test_case_node.id)
         end
       end

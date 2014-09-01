@@ -1,0 +1,20 @@
+<tr>
+  <th>
+    <%= l(:field_test_case) %>:
+  </th>
+  <td>
+    <%
+    links_executions = []
+    executions.each do |execution|
+      links_executions << link_to(execution.test_case.node.name, {
+        :controller => :impasse_executions,
+        :action => :index,
+        :project_id => context[:project],
+        :id => execution.test_plan_id,
+        :anchor => "test_case-#{execution.test_case.id}"
+      })
+    end
+    %>
+    <%= links_executions.join('<br />').html_safe %>
+  </td>
+</tr>

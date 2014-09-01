@@ -1,35 +1,55 @@
 <%= error_messages_for 'query' %>
-<% if @query.valid? %>
-  <% if @issues.empty? %>
-    <p class="nodata"><%= l(:label_no_data) %></p>
-  <% else %>
-    <div class="contextual">
-      <a href="#" id="button-close-requirements"><%= image_tag 'close.png' %></a>
+<div class="box">
+  <div class="contextual">
+    <a href="#" id="button-close-requirements"><%= image_tag 'close.png' %></a>
+  </div>
+  <div style="clear:both;"></div>
+  <%= form_tag "#", :id => 'requirement_issues' do %>
+    <%= hidden_field_tag 'set_filter', '1' %>
+    <div id="query_form_content" class="hide-when-print">
+      <fieldset id="filters" class="collapsible <%= @query.new_record? ? "" : "collapsed" %>">
+        <legend onclick="toggleFieldset(this);"><%= l(:label_filter_plural) %></legend>
+        <div style="<%= @query.new_record? ? "" : "display: none;" %>">
+          <%= render :partial => 'queries/filters', :locals => {:query => @query} %>
+        </div>
+      </fieldset>
     </div>
-    <div>
-      <label for="values_fixed_version_id"><%=l(:label_version)%></label>
-      <%= select_tag 'values_fixed_version_id', options_for_select(@project.versions.map{|v| [v.name, v.id] } << [l(:label_none), ''], params[:values][:fixed_version_id]) %>
-    </div>
-    <table class="list issues">
-      <thead><tr>
-	  <th>#</th>
-	  <th><%=l(:field_tracker)%></th>
-	  <th><%=l(:field_subject)%></th>
-	</tr></thead>
-      <tbody>
-	<% for issue in @issues %>
-	  <tr id="issue-<%= h(issue.id) %>" class="jstree-draggable <%= cycle('odd', 'even') %> <%= issue.css_classes %>">
-	    <td class="id">
-              <%= h(issue.id) %>
-	    </td>
-	    <td class="tracker"><%=h issue.tracker %></td>
-	    <td class="subject">
-              <%= h(truncate(issue.subject, :length => 60)) %> (<%=h issue.status %>)
-	    </td>
-	  </tr>
-	<% end %>
-      </tbody>
-    </table>
-    <p class="pagination"><%= pagination_links_full @issue_pages, @issue_count %></p>
   <% end %>
-<% end %>
+  <script type="text/javascript">
+    $("a#impasse_pagination_link").live('click', function() {
+      var url = $(this).attr('href');
+      $.ajax({
+          url: url,
+          data: { },
+          success: function(update_issue_tree) {
+            update_issue_tree;
+          }
+      });
+      return false;
+    });
+
+    function load_issues_table(data){
+      var form = $("#requirement_issues");
+      $.ajax({
+        url: "<%= url_for :controller=>:impasse_requirement_issues, :action=>:index, :project_id=>@project, :format=> 'js' %>",
+        data: data,
+        success: function(update_issue_tree) {
+          update_issue_tree;
+        }
+      });
+    }
+
+    $("a#submit_query_form").live('click', function(){
+      var form = $("#requirement_issues");
+      var data = form.serialize();
+      load_issues_table(data);
+      return false;
+    });
+  </script>
+
+  <p class="buttons hide-when-print">
+    <%= link_to l(:button_apply), '#', :class => 'icon icon-checked', :id => 'submit_query_form' %>
+    <%= link_to l(:button_clear), { :set_filter => 1, :project_id => @project }, :class => 'icon icon-reload'  %>
+  </p>
+  <div id="issues-tree"></div>
+</div>
