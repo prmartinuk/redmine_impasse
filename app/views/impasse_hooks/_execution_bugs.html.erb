@@ -9,7 +9,7 @@
       links_executions << link_to(execution.test_case.node.name, {
         :controller => :impasse_executions,
         :action => :index,
-        :project_id => context[:project],
+        :project_id => execution.test_case.project,
         :id => execution.test_plan_id,
         :anchor => "test_case-#{execution.test_case.id}"
       })
