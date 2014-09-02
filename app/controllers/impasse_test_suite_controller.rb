@@ -38,7 +38,7 @@ class ImpasseTestSuiteController < ApplicationController
       end
       if success
         flash[:notice] = l(:notice_successful_create)
-        redirect_to :controller => :impasse_test_case, :action => :index, :anchor => "testcase-#{@node.id}"
+        redirect_to :controller => :impasse_test_case, :action => :index, :anchor => "test_case-#{@node.id}"
       end
     rescue ActiveRecord::ActiveRecordError => e
       errors = []
@@ -67,7 +67,7 @@ class ImpasseTestSuiteController < ApplicationController
       end
       if success
         flash[:notice] = l(:notice_successful_update)
-        redirect_to :controller => :impasse_test_case, :action => :index, :anchor => "testcase-#{@node.id}"
+        redirect_to :controller => :impasse_test_case, :action => :index, :anchor => "test_case-#{@node.id}"
       end
     rescue ActiveRecord::ActiveRecordError=> e
       errors = []
