@@ -82,7 +82,7 @@ class ImpasseTestCaseController < ApplicationController
       if success
         render_attachment_warning_if_needed(@test_case)
         flash[:notice] = l(:notice_successful_create)
-        redirect_to :controller => :impasse_test_case, :action => :index, :anchor => "testcase-#{@node.id}"
+        redirect_to :controller => :impasse_test_case, :action => :index, :anchor => "test_case-#{@node.id}"
       end
     rescue ActiveRecord::ActiveRecordError => e
       errors = []
@@ -135,7 +135,7 @@ class ImpasseTestCaseController < ApplicationController
       if success
         render_attachment_warning_if_needed(@test_case)
         flash[:notice] = l(:notice_successful_update)
-        redirect_to :controller => :impasse_test_case, :action => :index, :anchor => "testcase-#{@node.id}"
+        redirect_to :controller => :impasse_test_case, :action => :index, :anchor => "test_case-#{@node.id}"
       end
 
     rescue ActiveRecord::ActiveRecordError=> e
