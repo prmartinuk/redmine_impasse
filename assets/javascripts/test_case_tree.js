@@ -281,6 +281,7 @@ jQuery(document).ready(function ($) {
     .bind("copy.jstree", function(e, data) {
     })
     .bind("move_node.jstree", function (e, data) {
+      $("#testcase-tree").block(impasse_loading_options());
       var url = (data.rslt.cy) ? IMPASSE.url.testCaseCopy : IMPASSE.url.testCaseMove;
       var request = {};
       data.rslt.o.each(function (i, node) {
@@ -315,8 +316,10 @@ jQuery(document).ready(function ($) {
             });
             $("ins.jstree-icon", dest).css("backgroundImage", "");
           }
+          $("#testcase-tree").unblock();
         },
         error: function(xhr, status, ex) {
+          $("#testcase-tree").unblock();
           $.jstree.rollback(data.rlbk);
           ajax_error_handler(xhr, status, ex);
         }
