@@ -263,7 +263,7 @@ jQuery(document).ready(function ($) {
       });
       $.ajax({
         async: false,
-        type: 'POST',
+        type: 'DELETE',
         url: IMPASSE.url.testCaseDestroy,
         data: request,
         success: function (r) {

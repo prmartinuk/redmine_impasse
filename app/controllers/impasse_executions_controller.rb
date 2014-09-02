@@ -13,7 +13,7 @@ class ImpasseExecutionsController < ApplicationController
   include CustomFieldsHelper
 
   menu_item :impasse
-  before_filter :find_project_by_project_id#, :authorize
+  before_filter :find_project_by_project_id
 
   include ActionView::Helpers::AssetTagHelper
 
@@ -120,6 +120,7 @@ class ImpasseExecutionsController < ApplicationController
     end
   end
 
+  private
   def convert(nodes, prefix='node')
     node_map = {}
     jstree_nodes = []

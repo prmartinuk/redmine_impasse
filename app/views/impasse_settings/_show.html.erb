@@ -9,18 +9,11 @@
 }
 
 %>
-<% if Rails::VERSION::MAJOR < 3 %>
-  <% labelled_form_for :setting, @impasse_setting,
-     :url => {:controller => :impasse_settings, :action => :edit, :project_id => @project }, 
-     :lang => current_language do |f| %>
+
+<%= labelled_form_for @impasse_setting,
+    :as => :setting,
+    :url => {:controller => :impasse_settings, :action => :update, :project_id => @project },
+    :method => 'PUT',
+    :lang => current_language do |f| %>
   <%= render :partial => 'impasse_settings/form', :locals => {:f => f } %>
-  <% end %>
-<% else %>
-  <% output = labelled_form_for @impasse_setting,
-      :as => :setting,
-      :url => {:controller => :impasse_settings, :action => :edit, :project_id => @project },
-      :lang => current_language do |f| %>
-  <%= render :partial => 'impasse_settings/form', :locals => {:f => f } %>
-  <% end %>
-  <%= output %>
 <% end %>

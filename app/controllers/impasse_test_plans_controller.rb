@@ -11,7 +11,7 @@ class ImpasseTestPlansController < ApplicationController
   include ImpasseTestPlansHelper
 
   menu_item :impasse
-  before_filter :find_project_by_project_id#, :authorize
+  before_filter :find_project_by_project_id
   accept_api_auth :index, :show, :edit, :destroy, :new, :update
 
   def index

@@ -3,7 +3,6 @@ class ImpasseExecStepHistsController < ApplicationController
 
   menu_item :impasse
   before_filter :find_project_by_project_id, :only => [:new, :create,:execution_step,:create_step_bug]
-  before_filter :authorize
   before_filter :check_for_default_issue_status, :only => [:new, :create, :create_step_bug]
   before_filter :build_new_issue_from_params, :only => [:new, :create, :create_step_bug]
 

@@ -1,7 +1,7 @@
 class ImpasseRequirementIssuesController < ApplicationController
   unloadable
 
-  before_filter :find_project_by_project_id, :authorize
+  before_filter :find_project_by_project_id
 
   helper :queries
   include QueriesHelper
