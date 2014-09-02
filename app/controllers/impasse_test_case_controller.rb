@@ -6,7 +6,7 @@ class ImpasseTestCaseController < ApplicationController
   include CustomFieldsHelper
 
   menu_item :impasse
-  before_filter :find_project#, :authorize
+  before_filter :find_project
   before_filter :get_settings, :only => [:index, :show, :new, :create, :destroy, :edit, :update]
   accept_api_auth :index, :show, :create, :update, :destroy, :new
 
@@ -61,7 +61,8 @@ class ImpasseTestCaseController < ApplicationController
     begin
       success = false
       ActiveRecord::Base.transaction do
-        success = @node.save!
+        success = save_node(@node)
+        Impasse::Node.update_order_lft(@node)
         success = @node.save_keywords!(params[:node_keywords]) && success
         @test_case.id = @node.id
         success = @test_case.save! && success
@@ -113,6 +114,7 @@ class ImpasseTestCaseController < ApplicationController
       success = false
       ActiveRecord::Base.transaction do
         success = save_node(@node)
+        Impasse::Node.update_order_lft(@node)
         success = @node.save_keywords!(params[:node_keywords]) && success
         success = @test_case.save! && success
 
@@ -211,6 +213,7 @@ class ImpasseTestCaseController < ApplicationController
         nodes << node
       end
     end
+    Impasse::Node.update_order_lft(nodes.first)
     render :json => nodes
   end
 
@@ -262,8 +265,8 @@ class ImpasseTestCaseController < ApplicationController
     node.parent_id = parent_id
     node.name = "#{l(:button_copy)}_#{node.name}"
     node.save!
-    node.update_siblings_order! if level == 0
-
+    node.update_siblings_order!
+    Impasse::Node.update_order_lft(node)
     test_case.id = node.id
     test_case.save!
 

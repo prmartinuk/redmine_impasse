@@ -133,14 +133,13 @@ module Impasse
         sibling.node_order = i
         sibling.save!
       end
-      self.update_order_lft
     end
 
-    def update_order_lft
-      unless self.root.valid?
+    def self.update_order_lft(node)
+      unless node.root.valid?
         Node.rebuild!
       end
-      self.root.children.sort_by(&:node_order).each do |sibling|
+      node.root.children.sort_by(&:node_order).each do |sibling|
         unless sibling.prev.nil?
           sibling.move_to_right_of(sibling.prev)
         else

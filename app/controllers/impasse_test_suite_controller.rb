@@ -31,6 +31,7 @@ class ImpasseTestSuiteController < ApplicationController
       success = false
       ActiveRecord::Base.transaction do
         success = @node.save!
+        Impasse::Node.update_order_lft(@node)
         success = @node.save_keywords!(params[:node_keywords] || "") && success
         @test_suite.id = @node.id
         success = @test_suite.save! && success
@@ -61,6 +62,7 @@ class ImpasseTestSuiteController < ApplicationController
       success = false
       ActiveRecord::Base.transaction do
         success = save_node(@node)
+        Impasse::Node.update_order_lft(@node)
         success = @node.save_keywords!(params[:node_keywords] || "") && success
       end
       if success
