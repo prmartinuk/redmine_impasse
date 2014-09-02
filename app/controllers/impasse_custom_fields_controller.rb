@@ -33,7 +33,7 @@ class ImpasseCustomFieldsController < ApplicationController
     if (request.post? || request.put?) and @custom_field.update_attributes(params[:custom_field])
       flash[:notice] = l(:notice_successful_update)
       call_hook(:controller_custom_fields_edit_after_save, :params => params, :custom_field => @custom_field)
-      redirect_to :action => 'index', :tab => @custom_field.class.name
+      redirect_to :action => 'index', :tab => @custom_field.class.name.gsub("::","-")
     else
       @trackers = Tracker.find(:all, :order => 'position')
     end
@@ -41,7 +41,7 @@ class ImpasseCustomFieldsController < ApplicationController
 
   def destroy
     @custom_field = CustomField.find(params[:id]).destroy
-    redirect_to :action => 'index', :tab => @custom_field.class.name
+    redirect_to :action => 'index', :tab => @custom_field.class.name.gsub("::","-")
   rescue
     flash[:error] = l(:error_can_not_delete_custom_field)
     redirect_to :action => 'index'
