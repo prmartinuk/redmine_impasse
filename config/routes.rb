@@ -29,7 +29,7 @@ match 'projects/:project_id/impasse/test_plans/copy(/:id)', :to => 'impasse_test
 match 'projects/:project_id/impasse/test_plans/tc_assign(/:id)', :to => 'impasse_test_plans#tc_assign', :via => 'GET'
 match 'projects/:project_id/impasse/test_plans/user_assign(/:id)', :to => 'impasse_test_plans#user_assign', :via => 'GET'
 match 'projects/:project_id/impasse/test_plans/statistics(/:id)', :to => 'impasse_test_plans#statistics', :via => 'GET'
-match 'projects/:project_id/impasse/test_plans/remove_test_case(/:id)', :to => 'impasse_test_plans#remove_test_case', :via => 'DELETE'
+match 'projects/:project_id/impasse/test_plans/remove_test_case(/:id)', :to => 'impasse_test_plans#remove_test_case', :via => ['POST', 'DELETE']
 match 'projects/:project_id/impasse/test_plans/autocomplete', :to => 'impasse_test_plans#autocomplete', :via => 'GET'
 match 'projects/:project_id/impasse/test_plans/coverage(/:id)', :to => 'impasse_test_plans#coverage', :via => 'GET'
 match 'projects/:project_id/impasse/test_plans/coverage_case(/:id)', :to => 'impasse_test_plans#coverage_case', :via => 'GET'
