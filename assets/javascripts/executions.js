@@ -65,7 +65,7 @@ jQuery(document).ready(function($) {
 
   var $tree = $("#testplan-tree")
     .jstree({
-      "plugins" : ["themes", "json_data", "ui", "crrm", "search", "types", "hotkeys"],
+      "plugins" : ["themes", "json_data", "ui", "crrm", "search", "types", "hotkeys", "cookies"],
       json_data : {
         ajax : {
           url : IMPASSE.url.executionsList,
@@ -92,6 +92,11 @@ jQuery(document).ready(function($) {
             $("#testplan-tree").unblock();
           }
         }
+      },
+      cookies : {
+          save_opened : true,
+          save_selected : false,
+          auto_save : true
       },
       types : {
         max_depth : -2,

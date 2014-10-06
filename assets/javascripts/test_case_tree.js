@@ -143,7 +143,7 @@ jQuery(document).ready(function ($) {
     });
   }
 
-  var plugins = ["themes","json_data","ui","types", "hotkey"];
+  var plugins = ["themes","json_data","ui","types", "hotkey", "cookies"];
   if (IMPASSE.canEdit) {
     plugins = plugins.concat(["crrm","dnd","contextmenu", "checkbox"]);
   }
@@ -154,6 +154,11 @@ jQuery(document).ready(function ($) {
       plugins: plugins,
       core: {
         animation: 0
+      },
+      cookies : {
+          save_opened : true,
+          save_selected : false,
+          auto_save : true
       },
       contextmenu: {
         select_node: true,
@@ -355,6 +360,23 @@ jQuery(document).ready(function ($) {
   $("#button-close-requirements").live("click", function(e) {
     $("#requirements-view").hide();
     e.preventDefault();
+  });
+
+  $("#rebuild_tree").live("click", function(e){
+    $("#testcase-tree").block(impasse_loading_options());
+    $.ajax({
+      type: 'POST',
+      url: IMPASSE.url.RebuildTree,
+      data: { },
+      success: function() {
+        $("#testcase-tree").unblock();
+      },
+      error: function(xhr, status, ex) {
+        $("#testcase-tree").unblock();
+        ajax_error_handler(xhr, status, ex);
+      }
+    });
+    return false;
   });
 
 });

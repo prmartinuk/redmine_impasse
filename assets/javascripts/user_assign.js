@@ -75,6 +75,11 @@ jQuery(document).ready(function ($) {
         }
       }
     },
+    cookies : {
+        save_opened : true,
+        save_selected : false,
+        auto_save : true
+    },
     types: {
       max_depth: -2,
       max_children: -2,

@@ -28,6 +28,11 @@ jQuery(document).ready(function ($) {
         }
       }
     },
+    cookies : {
+        save_opened : true,
+        save_selected : false,
+        auto_save : true
+    },
     types: {
       max_depth: -2,
       max_children: -2,
@@ -130,6 +135,11 @@ jQuery(document).ready(function ($) {
         if (node.attr("rel") == 'test_case' || node.attr("rel") == 'test_suite')
         return PLAN_CASE_MENU;
       }
+    },
+    cookies : {
+        save_opened : true,
+        save_selected : false,
+        auto_save : true
     },
     types: {
       max_depth: -2,

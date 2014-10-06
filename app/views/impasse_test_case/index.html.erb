@@ -16,6 +16,7 @@
     jQuery.jstree._themes = '<%=Redmine::Utils::relative_url_root%>/plugin_assets/redmine_impasse/stylesheets/themes/';
     var IMPASSE = {
       url: {
+        RebuildTree:  "<%=url_for :controller=>:impasse_test_case, :action=>:rebuild_tree, :project_id=>@project%>",
         testSuiteNew:  "<%=url_for :controller=>:impasse_test_suite, :action=>:new, :project_id=>@project%>",
         testSuiteEdit: "<%=url_for :controller=>:impasse_test_suite, :action=>:edit, :project_id=>@project%>",
         testSuiteShow: "<%= url_for :controller=>:impasse_test_suite, :action=>:show, :project_id=>@project %>",
@@ -96,6 +97,7 @@
           'jQuery(".filter :input").val("");jQuery("#testcase-tree").jstree("refresh");',
           :class => 'icon icon-reload'
       %>
+      <%= link_to "Rebuild Tree", "#", :id => "rebuild_tree", :class => 'icon icon-reload' %>
     </p>
     <div id="testcase-tree"></div>
   </div>

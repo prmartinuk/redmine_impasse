@@ -62,7 +62,6 @@ class ImpasseTestCaseController < ApplicationController
       success = false
       ActiveRecord::Base.transaction do
         success = save_node(@node)
-        Impasse::Node.update_order_lft(@node)
         success = @node.save_keywords!(params[:node_keywords]) && success
         @test_case.id = @node.id
         success = @test_case.save! && success
@@ -114,7 +113,6 @@ class ImpasseTestCaseController < ApplicationController
       success = false
       ActiveRecord::Base.transaction do
         success = save_node(@node)
-        Impasse::Node.update_order_lft(@node)
         success = @node.save_keywords!(params[:node_keywords]) && success
         success = @test_case.save! && success
 
@@ -213,8 +211,12 @@ class ImpasseTestCaseController < ApplicationController
         nodes << node
       end
     end
-    Impasse::Node.update_order_lft(nodes.first)
     render :json => nodes
+  end
+
+  def rebuild_tree
+    Impasse::Node.update_order_lft(Impasse::Node.last)
+    render :json => {"status" => "ok"}
   end
 
   private
@@ -224,7 +226,6 @@ class ImpasseTestCaseController < ApplicationController
 
   def save_node(node)
     success = node.save!
-    success = node.update_siblings_order! && success
     return success
   end
 
@@ -295,7 +296,6 @@ class ImpasseTestCaseController < ApplicationController
       if node.is_test_suite?
         count_children = node_test_cases.collect{|x| x if node.lft < x.lft and node.rgt > x.rgt }.compact.count
         jstree_node['data']['title'] = "#{node.name} (#{count_children})"
-        jstree_node['state'] = 'closed'
       end
 
       if node.is_test_case?
@@ -309,7 +309,6 @@ class ImpasseTestCaseController < ApplicationController
       if node_map.include? node.parent_id
         # non-root node
         node_map[node.parent_id]['children'] << jstree_node
-        node_map[node.parent_id]['state'] = 'open'
       else
         #root node
         jstree_nodes << jstree_node

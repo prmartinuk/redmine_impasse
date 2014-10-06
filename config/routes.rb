@@ -10,6 +10,7 @@ match 'projects/:project_id/impasse/test_case/destroy(/:id)', :to => 'impasse_te
 match 'projects/:project_id/impasse/test_case/keywords', :to => 'impasse_test_case#keywords', :via => 'GET'
 match 'projects/:project_id/impasse/test_case/copy', :to => 'impasse_test_case#copy', :via => 'POST'
 match 'projects/:project_id/impasse/test_case/move', :to => 'impasse_test_case#move', :via => 'POST'
+match 'projects/:project_id/impasse/test_case/rebuild_tree', :to => 'impasse_test_case#rebuild_tree', :via => 'POST'
 #TestSuites
 match 'projects/:project_id/impasse/test_suite/new', :to => 'impasse_test_suite#new', :via => 'GET'
 match 'projects/:project_id/impasse/test_suite/show(/:id)', :to => 'impasse_test_suite#show', :via => 'GET'
