@@ -62,6 +62,7 @@ class ImpasseTestSuiteController < ApplicationController
       success = false
       ActiveRecord::Base.transaction do
         success = @node.save
+        success = @test_suite.save && success
         success = @node.save_keywords!(params[:node_keywords] || "") && success
       end
       if success
