@@ -61,8 +61,7 @@ class ImpasseTestSuiteController < ApplicationController
     begin
       success = false
       ActiveRecord::Base.transaction do
-        success = save_node(@node)
-        Impasse::Node.update_order_lft(@node)
+        success = @node.save
         success = @node.save_keywords!(params[:node_keywords] || "") && success
       end
       if success
@@ -78,12 +77,6 @@ class ImpasseTestSuiteController < ApplicationController
   end
 
   private
-  def save_node(node)
-    save_node = node.save!
-    update_order = node.update_siblings_order!
-    return save_node && update_order
-  end
-
   def get_settings
     @setting = Impasse::Setting.find_by_project_id(@project) || Impasse::Setting.create(:project_id => @project.id)
   end
