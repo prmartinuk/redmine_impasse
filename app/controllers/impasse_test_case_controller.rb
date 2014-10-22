@@ -280,6 +280,10 @@ class ImpasseTestCaseController < ApplicationController
   end
 
   def convert(nodes, prefix='node')
+    show_all_node = true
+    if 'filters'.in? params
+      show_all_node = false
+    end
     node_map = {}
     jstree_nodes = []
     node_test_cases = nodes.reject{|x| x if not x.is_test_case?}
@@ -295,7 +299,11 @@ class ImpasseTestCaseController < ApplicationController
 
       if node.is_test_suite?
         count_children = node_test_cases.collect{|x| x if node.lft < x.lft and node.rgt > x.rgt }.compact.count
-        jstree_node['data']['title'] = "#{node.name} (#{count_children})"
+        if show_all_node or count_children > 0
+          jstree_node['data']['title'] = "#{node.name} (#{count_children})"
+        else
+          next
+        end
       end
 
       if node.is_test_case?

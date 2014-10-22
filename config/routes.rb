@@ -38,7 +38,7 @@ match 'projects/:project_id/impasse/test_plans/coverage_case(/:id)', :to => 'imp
 match 'projects/:project_id/impasse/executions', :to => 'impasse_executions#index', :via => 'GET'
 match 'projects/:project_id/impasse/executions/edit(/:id)', :to => 'impasse_executions#edit', :via => 'GET'
 match 'projects/:project_id/impasse/executions/put(/:id)', :to => 'impasse_executions#put', :via => ['PUT', 'POST']
-match 'projects/:project_id/impasse/executions/destroy(/:id)', :to => 'impasse_executions#destroy', :via => 'DELETE'
+match 'projects/:project_id/impasse/executions/destroy(/:id)', :to => 'impasse_executions#destroy', :via => ['DELETE', 'POST']
 match 'projects/:project_id/impasse/executions/get_planned(/:id)', :to => 'impasse_executions#get_planned', :via => 'GET'
 match 'projects/:project_id/impasse/executions/get_executed(/:id)', :to => 'impasse_executions#get_executed', :via => 'GET'
 #ExecutionsBug
