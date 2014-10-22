@@ -370,9 +370,11 @@ jQuery(document).ready(function ($) {
       data: { },
       success: function() {
         $("#testcase-tree").unblock();
+        jQuery("#testcase-tree").jstree('refresh');
       },
       error: function(xhr, status, ex) {
         $("#testcase-tree").unblock();
+        jQuery("#testcase-tree").jstree('refresh');
         ajax_error_handler(xhr, status, ex);
       }
     });
