@@ -226,6 +226,7 @@ class ImpasseTestCaseController < ApplicationController
 
   def save_node(node)
     success = node.save!
+    success = node.update_siblings_order! && success
     return success
   end
 
