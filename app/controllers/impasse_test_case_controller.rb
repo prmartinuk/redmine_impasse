@@ -268,7 +268,6 @@ class ImpasseTestCaseController < ApplicationController
     node.name = "#{l(:button_copy)}_#{node.name}"
     node.save!
     node.update_siblings_order!
-    Impasse::Node.update_order_lft(node)
     test_case.id = node.id
     test_case.save!
 
