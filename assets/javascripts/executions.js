@@ -39,7 +39,7 @@ jQuery(document).ready(function($) {
         "test_plan_case[test_case_id]" : node_id
       },
       success : function(html) {
-        var winHeight = $(window).height();
+        var winHeight = $(window).height() - 220;
         var $executionsView = $("#executions-view");
         $executionsView.css({
           height : '',
@@ -51,7 +51,7 @@ jQuery(document).ready(function($) {
           $(this).prev().attr("checked", "checked");
         });
         if ($executionsView.height() > winHeight) {
-          $executionsView.height(winHeight - 1).css('overflow', 'scroll');
+          $executionsView.height(winHeight).css('overflow', 'auto');
         }
         sobrescrever_show_test_case();
       },

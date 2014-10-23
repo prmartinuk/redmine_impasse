@@ -97,11 +97,11 @@ jQuery(document).ready(function ($) {
     $.ajax({
       url: show_url + '/' + node_id,
       success: function(html) {
-        var winHeight = $(window).height();
+        var winHeight = $(window).height() - 220;
         var $testCaseView = $("#test-case-view");
         $testCaseView.css({height:'', overflow:''}).html(html).show();
         if ($testCaseView.height() > winHeight) {
-          $testCaseView.height(winHeight - 1).css('overflow', 'scroll');
+          $testCaseView.height(winHeight).css('overflow', 'auto');
         }
       },
       error: ajax_error_handler,
