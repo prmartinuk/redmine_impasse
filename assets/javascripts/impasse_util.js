@@ -1,23 +1,3 @@
-function impasse_loading_options() {
-  return {
-  message: '<span>loading...</span>',
-    css: {
-      backgroundPosition: "0% 40%",
-      backgroundRepeat: "no-repeat",
-      paddingLeft: "26px",
-      backgroundColor: "#EEE",
-      border: "1px solid #BBB",
-      top: "35%",
-      left: "40%",
-      width: "20%",
-      fontWeight: "bold",
-      textAlign: "center",
-      padding: "0.6em",
-      opacity: 0.9,
-      cursor: "auto"
-    }
-  };
-}
 function ajax_error_handler(xhr, status ,ex) {
   var message = "Can't connect. reasons %{value}".replace('%{value}', ex);
   if (xhr.status == 401 || xhr.status == 403) {

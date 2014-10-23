@@ -16,11 +16,11 @@ jQuery(document).ready(function($) {
     $(".list select ").each(function() {
       var step_id = $(this).attr('test_step_id');
       $.get(IMPASSE.url.executionStepHistList + "&test_case_id=" + $(this).attr('test_case_id') + "&test_step_id=" + step_id, {}, function(data) {
-        jQuery.unblockUI();
+        $('#ajax-indicator').hide();
         $("#div-step-hist_" + step_id).html(data);
       });
       $.get(IMPASSE.url.executionStepHistLast + "?test_step_id=" + step_id, {}, function(data) {
-        jQuery.unblockUI();
+        $('#ajax-indicator').hide();
         var status_step = data.status_step;
         $("#status_step_execucao_" + data.test_steps_id).find("option").each(function() {
           if ($(this).val() == data.status_step) {
@@ -57,7 +57,7 @@ jQuery(document).ready(function($) {
       },
       error : ajax_error_handler,
       complete : function() {
-        $("#executions-view").unblock();
+        $('#ajax-indicator').hide();
         $("#executions-view").floatmenu();
       }
     });
@@ -89,7 +89,7 @@ jQuery(document).ready(function($) {
             return params;
           },
           complete : function() {
-            $("#testplan-tree").unblock();
+            $('#ajax-indicator').hide();
           }
         }
       },
@@ -140,7 +140,7 @@ jQuery(document).ready(function($) {
       var node_type = data.rslt.obj.attr("rel");
       if(node_type == 'test_case'){
         location.replace("#test_case-" + node_id);
-        $("#executions-view").block(impasse_loading_options());
+        $('#ajax-indicator').show();
         show_test_case(node_id);
       }
     });
@@ -197,7 +197,7 @@ jQuery(document).ready(function($) {
   });
 
   $("p.buttons a.icon.icon-checked").click(function(e) {
-    $("#testplan-tree").block(impasse_loading_options());
+    $('#ajax-indicator').show();
     $tree.jstree("refresh");
     return false;
   });
@@ -225,11 +225,8 @@ jQuery(document).ready(function($) {
         }
       },
       complete : function(data) {
-        $.unblockUI();
+        $('#ajax-indicator').hide();
       }
-    });
-    $.blockUI({
-      message : "<h1>Saving...</h1>"
     });
     return false;
   });

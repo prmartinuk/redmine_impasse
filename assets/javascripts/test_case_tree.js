@@ -106,7 +106,8 @@ jQuery(document).ready(function ($) {
       },
       error: ajax_error_handler,
       complete: function() {
-        $("#test-case-view").unblock();
+        $('#ajax-indicator').hide();
+        $("#testcase-tree").unblock();
       }
     });
   }
@@ -286,7 +287,8 @@ jQuery(document).ready(function ($) {
     .bind("copy.jstree", function(e, data) {
     })
     .bind("move_node.jstree", function (e, data) {
-      $("#testcase-tree").block(impasse_loading_options());
+      $('#ajax-indicator').show();
+      $("#testcase-tree").block({message : ""});
       var url = (data.rslt.cy) ? IMPASSE.url.testCaseCopy : IMPASSE.url.testCaseMove;
       var request = {};
       data.rslt.o.each(function (i, node) {
@@ -321,9 +323,11 @@ jQuery(document).ready(function ($) {
             });
             $("ins.jstree-icon", dest).css("backgroundImage", "");
           }
+          $('#ajax-indicator').hide();
           $("#testcase-tree").unblock();
         },
         error: function(xhr, status, ex) {
+          $('#ajax-indicator').hide();
           $("#testcase-tree").unblock();
           $.jstree.rollback(data.rlbk);
           ajax_error_handler(xhr, status, ex);
@@ -334,7 +338,8 @@ jQuery(document).ready(function ($) {
       var node_id = data.rslt.obj.attr("id").replace("node_", "");
       var node_type = data.rslt.obj.attr("rel");
       if(node_type == 'test_case' || node_type == 'test_suite'){
-        $("#test-case-view").block(impasse_loading_options());
+        $('#ajax-indicator').show();
+        $("#testcase-tree").block({message : ""});
         location.replace("#" + node_type + '-' + node_id);
         show_node(node_id, node_type);
       }
@@ -363,18 +368,21 @@ jQuery(document).ready(function ($) {
   });
 
   $("#rebuild_tree").live("click", function(e){
-    $("#testcase-tree").block(impasse_loading_options());
+    $('#ajax-indicator').show();
+    $("#testcase-tree").block({message : ""});
     $.ajax({
       type: 'POST',
       url: IMPASSE.url.RebuildTree,
       data: { },
       success: function() {
-        $("#testcase-tree").unblock();
         jQuery("#testcase-tree").jstree('refresh');
+        $('#ajax-indicator').hide();
+        $("#testcase-tree").unblock();
       },
       error: function(xhr, status, ex) {
-        $("#testcase-tree").unblock();
         jQuery("#testcase-tree").jstree('refresh');
+        $('#ajax-indicator').hide();
+        $("#testcase-tree").unblock();
         ajax_error_handler(xhr, status, ex);
       }
     });
