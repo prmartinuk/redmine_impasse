@@ -187,6 +187,7 @@ class ImpasseTestPlansController < ApplicationController
     if request.post? or request.put?
       ActiveRecord::Base.transaction do
         new_test_plan = @test_plan.dup
+        new_test_plan.name = "Copy #{new_test_plan.name}"
         new_test_plan.save!
 
         test_plan_cases = Impasse::TestPlanCase.find_all_by_test_plan_id(params[:id])
